@@ -7,10 +7,22 @@ const rl = readline.createInterface({
   output: process.stdout
 })
 
-const readFile = () => new Promise(resolve => {
-  fs.readFile('file.json', 'utf8', (err, file) => {
+const readFile = path => new Promise((resolve, reject) => {
+  fs.readFile(path, 'utf8', (err, file) => {
+    if(err){
+      reject(err)
+    }
     resolve(JSON.parse(file))
   })
+})
+
+const writeFile = (path, data) => new Promise((resolve, reject) => {
+  fs.writeFile(path, JSON.stringify(data, null, 2), 'utf8', err => {
+    if(err) {
+      reject(err)
+    }
+    resolve()
+  });
 })
 
 const question = q =>
@@ -20,38 +32,51 @@ const question = q =>
     })
   })
 
-const getAccidental = key => {
-  return key === 's' ? 'sharp' : key ==='n' ? 'normal' : key === 'f' ? 'flat' : null
+const getVal = ({ ofKey: wantedKey, from }) => {
+  let result
+  data.forEach(field => {
+    if(!field) return
+    let [key, val] = field.split(':')
+    if(key === wantedKey) {
+      result = val
+    }
+  })
+  return result
+}
+
+const types = {
+  clef: 'c',
+  size: 's',
+  type: 't',
+  midi: 'm',
+  accidental: 'a',
+  dot: 'd'
 }
 
 const single = async (item) => {
   let note
   let clef = 'any'
   while (1) {
-    note = await question('Type next block note for clef ' + clef + ' with + if multiple in block. If want to end, type stop')
+    note = await question('Type next block note for clef ' + clef + ' with + if multiple in block. If want to end, type stop\n' +
+      'Cheat sheet - c:clef(t,b) s:size(number) t:type(n, t, p, m) m:midi(ex. c4s == C4 sharp) a:accidental(s,f,n) d:dot(1,2)')
     // format: t|b _ 60 _ 8 _ s|n|f _ d|&t
     // treble/bass _ midi _ size _ accidental
     if (!note) continue
     if (note === 'stop') return note
-    const array = note.split(' ')
-    const data = {}
-    clef = array[0]
-    data.size = parseInt(array[2], 10)
-    if(array[1] === 'p'){
-      data.type = 'pause'
-      item.push(data)
-      return clef
-    }
-    data.type = 'note'
-    data.midi = util.resolveMIDIValue(array[1])
-    if(array[3]) {
-      data.accidental = getAccidental(array[3])
-    }
-    if(array.includes('d')) data.dot = 'single'
-    if(array.includes('dd')) data.dot = 'double'
-    /// there also could be tie, but fuck it for now
+    const structuredData = note.split(' ')
+    let data = ''
+    clef = getVal({ from: structuredData, ofKey: types.clef })
+    let midi = util.resolveMIDIValue(getVal({ from: structuredData, ofKey: types.midi }))
+
+    data = structuredData.filter(field => {
+      let [key] = field.split(':')
+      return key !== types.clef && key !== types.midi
+    }).join(';')
+
+    data += `m:${midi};`
+
     item.push(data)
-    if(!array.includes('+')) return clef
+    if(note.includes('+')) return clef
   }
 }
 
@@ -82,13 +107,9 @@ const startListening = async () => {
 
   await multiple(data.treble, data.bass)
   rl.close();
-  fs.writeFile('file.json', JSON.stringify(data, null, 2), 'utf8', () => {
-    console.log('Succeeded')
-  });
+  await writeFile('file.json', data)
   const backup = new Date().getTime()
-  fs.writeFile(`file-${backup}.json`, JSON.stringify(data, null, 2), 'utf8', () => {
-    console.log('Backup succeeded')
-  });
+  await writeFile(`file-backup=${backup}`, data)
 }
 
 startListening()
