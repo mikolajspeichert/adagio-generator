@@ -32,8 +32,8 @@ const question = q =>
     })
   })
 
-const getVal = ({ ofKey: wantedKey, from }) => {
-  let result
+const getVal = ({ ofKey: wantedKey, from: data }) => {
+  let result = null
   data.forEach(field => {
     if(!field) return
     let [key, val] = field.split(':')
