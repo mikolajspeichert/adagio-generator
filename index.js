@@ -66,17 +66,20 @@ const single = async (item) => {
     const structuredData = note.split(' ')
     let data = ''
     clef = getVal({ from: structuredData, ofKey: types.clef })
-    let midi = util.resolveMIDIValue(getVal({ from: structuredData, ofKey: types.midi }))
 
     data = structuredData.filter(field => {
       let [key] = field.split(':')
       return key !== types.clef && key !== types.midi
     }).join(';')
 
-    data += `m:${midi};`
+
+    let midi = util.resolveMIDIValue(getVal({ from: structuredData, ofKey: types.midi }))
+    if (midi) {
+      data += `;m:${midi};`
+    }
 
     item.push(data)
-    if(note.includes('+')) return clef
+    if(!note.includes('+')) return clef
   }
 }
 
@@ -84,9 +87,13 @@ const multiple = async (treble, bass) => {
   while (1) {
     let item = []
     let clef = await single(item)
-    if(clef === 't') treble.push(item)
+    if(clef === 't') {
+      treble.push(item)
+    }
     if(clef === 'b') bass.push(item)
-    if(clef === 'stop') return
+    if(clef === 'stop') {
+      return
+    }
   }
 }
 
@@ -102,7 +109,7 @@ const startListening = async () => {
     data.treble = []
     data.bass = []
   } else {
-    data = await readFile()
+    data = await readFile('file.json')
   }
 
   await multiple(data.treble, data.bass)

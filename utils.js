@@ -9,6 +9,7 @@ const values = {
 }
 
 const resolveMIDIValue = key => {
+  if(!key) return null
   const keys = key.split('')
   const letter = keys[0].toLowerCase()
   const multiplier = parseInt(keys[1], 10)
